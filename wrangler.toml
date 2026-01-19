@@ -1,0 +1,16 @@
+name = "github-scheduler"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# Cron 触发器配置
+# 时间使用 UTC，需要转换为北京时间
+[triggers]
+crons = [
+  "30 0 * * *",   # UTC 00:30 = 北京时间 8:30 -> daily-tech-news
+  "0 12 * * *"   # UTC 12:00 = 北京时间 20:00 -> beauty-generator
+]
+
+# 环境变量 (敏感信息使用 secret)
+# 运行: wrangler secret put GITHUB_TOKEN
+# [vars]
+# 不要在这里放敏感信息
