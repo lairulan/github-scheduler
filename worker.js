@@ -4,7 +4,8 @@
  *
  * 配置的任务：
  * 1. daily-tech-news: 每天 8:30 北京时间 (UTC 00:30)
- * 2. beauty-generator: 每天 20:00 北京时间 (UTC 12:00)
+ * 2. industrial-robot-insights: 每天 20:05 北京时间 (UTC 12:05)
+ * 3. beauty-generator: 每天 20:00 北京时间 (UTC 12:00)
  */
 
 // 任务配置
@@ -15,6 +16,12 @@ const WORKFLOWS = {
     workflow: 'daily-news.yml',
     ref: 'main',
     description: 'AI科技财经日报'
+  },
+  'industrial-robot-insights': {
+    owner: 'lairulan',
+    repo: 'industrial-robot-insights',
+    event_type: 'daily-robot-insights',  // 使用 repository_dispatch
+    description: '工业机器人前沿洞察'
   },
   'beauty-generator': {
     owner: 'lairulan',
@@ -27,9 +34,26 @@ const WORKFLOWS = {
 
 /**
  * 触发 GitHub Actions workflow
+ * 支持两种触发方式：
+ * 1. workflow_dispatch: 标准 workflow 触发（需要 workflow 和 ref）
+ * 2. repository_dispatch: 仓库事件触发（需要 event_type）
  */
 async function triggerWorkflow(workflow, token) {
-  const url = `https://api.github.com/repos/${workflow.owner}/${workflow.repo}/actions/workflows/${workflow.workflow}/dispatches`;
+  let url, body;
+
+  if (workflow.event_type) {
+    // repository_dispatch 方式
+    url = `https://api.github.com/repos/${workflow.owner}/${workflow.repo}/dispatches`;
+    body = JSON.stringify({
+      event_type: workflow.event_type
+    });
+  } else {
+    // workflow_dispatch 方式
+    url = `https://api.github.com/repos/${workflow.owner}/${workflow.repo}/actions/workflows/${workflow.workflow}/dispatches`;
+    body = JSON.stringify({
+      ref: workflow.ref
+    });
+  }
 
   const response = await fetch(url, {
     method: 'POST',
@@ -39,9 +63,7 @@ async function triggerWorkflow(workflow, token) {
       'User-Agent': 'Cloudflare-Worker-Scheduler',
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({
-      ref: workflow.ref
-    })
+    body: body
   });
 
   if (response.status === 204) {
@@ -66,8 +88,13 @@ function getWorkflowToTrigger(scheduledTime) {
     return WORKFLOWS['daily-tech-news'];
   }
 
+  // UTC 12:05 = 北京时间 20:05 -> industrial-robot-insights
+  if (utcHour === 12 && utcMinute >= 5 && utcMinute <= 10) {
+    return WORKFLOWS['industrial-robot-insights'];
+  }
+
   // UTC 12:00 = 北京时间 20:00 -> beauty-generator
-  if (utcHour === 12 && utcMinute >= 0 && utcMinute <= 5) {
+  if (utcHour === 12 && utcMinute >= 0 && utcMinute <= 4) {
     return WORKFLOWS['beauty-generator'];
   }
 
@@ -177,12 +204,14 @@ export default {
       endpoints: {
         '/health': '健康检查',
         '/trigger?workflow=daily-tech-news': '触发AI科技财经日报',
+        '/trigger?workflow=industrial-robot-insights': '触发工业机器人洞察',
         '/trigger?workflow=beauty-generator': '触发每日美女图',
         '/trigger-all': '触发所有任务'
       },
       cron_schedules: {
-        'daily-tech-news': '每天 8:30 北京时间',
-        'beauty-generator': '每天 20:00 北京时间'
+        'daily-tech-news': '每天 8:30 北京时间 (UTC 00:30)',
+        'industrial-robot-insights': '每天 20:05 北京时间 (UTC 12:05)',
+        'beauty-generator': '每天 20:00 北京时间 (UTC 12:00)'
       }
     }), {
       headers: { 'Content-Type': 'application/json' }
