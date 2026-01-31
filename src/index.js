@@ -4,8 +4,8 @@
  * 合并管理多个定时任务：
  * - daily-tech-news: 每天 08:30 北京时间 (UTC 00:30)
  * - skill-digest: 每天 12:00 北京时间 (UTC 04:00)
- * - daily-beauty: 每天 20:00 北京时间 (UTC 12:00)
- * - daily-robot-insights: 每天 20:05 北京时间 (UTC 12:05)
+ * - daily-beauty: 每天 19:30 北京时间 (UTC 11:30)
+ * - daily-robot-insights: 每天 20:00 北京时间 (UTC 12:00)
  */
 
 // 任务配置
@@ -27,16 +27,16 @@ const JOBS = {
   'daily-beauty': {
     repo: 'lairulan/beauty-generator',
     event_type: 'daily-beauty',
-    cron_hour: 12,  // UTC 12:xx = 20:00 北京时间
-    cron_minute: 0,
-    description: '每日艺术写真 (20:00 北京时间)'
+    cron_hour: 11,  // UTC 11:30 = 19:30 北京时间
+    cron_minute: 30,
+    description: '每日艺术写真 (19:30 北京时间)'
   },
   'daily-robot-insights': {
     repo: 'lairulan/industrial-robot-insights',
     event_type: 'daily-robot-insights',
-    cron_hour: 12,  // UTC 12:xx = 20:xx 北京时间
-    cron_minute: 5,
-    description: '工业机器人洞察 (20:05 北京时间)'
+    cron_hour: 12,  // UTC 12:00 = 20:00 北京时间
+    cron_minute: 0,
+    description: '工业机器人洞察 (20:00 北京时间)'
   }
 };
 
