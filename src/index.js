@@ -3,6 +3,7 @@
  *
  * 合并管理多个定时任务：
  * - daily-tech-news: 每天 08:30 北京时间 (UTC 00:30)
+ * - health-wellness: 每天 09:00 北京时间 (UTC 01:00)
  * - skill-digest: 每天 12:00 北京时间 (UTC 04:00)
  * - daily-beauty: 每天 19:30 北京时间 (UTC 11:30)
  * - daily-robot-insights: 每天 20:00 北京时间 (UTC 12:00)
@@ -16,6 +17,13 @@ const JOBS = {
     cron_hour: 0,  // UTC 00:xx
     cron_minute: 30,
     description: '每日科技新闻 (08:30 北京时间)'
+  },
+  'health-wellness': {
+    repo: 'lairulan/health-wellness-publisher',
+    event_type: 'daily-wellness',
+    cron_hour: 1,  // UTC 01:00 = 09:00 北京时间
+    cron_minute: 0,
+    description: '手工暖食小馆养生内容 (09:00 北京时间, 隔天发布)'
   },
   'skill-digest': {
     repo: 'lairulan/skill-digest',
@@ -36,7 +44,15 @@ const JOBS = {
     event_type: 'daily-robot-insights',
     cron_hour: 12,  // UTC 12:00 = 20:00 北京时间
     cron_minute: 0,
-    description: '工业机器人洞察 (20:00 北京时间)'
+    weekdays: [1, 3, 5],  // 仅周一、三、五
+    description: '工业机器人洞察 (20:00 北京时间, 周一三五)'
+  },
+  'daily-psychology': {
+    repo: 'lairulan/teen-psychology-insights',
+    event_type: 'daily-psychology',
+    cron_hour: 12,  // UTC 12:00 = 20:00 北京时间
+    cron_minute: 0,
+    description: '心光馨语心理学文章 (20:00 北京时间)'
   }
 };
 
@@ -50,8 +66,14 @@ export default {
     console.log(`Scheduled event at UTC ${hour}:${minute}`);
 
     // 根据时间确定要触发的任务
+    const dayOfWeek = now.getUTCDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
     for (const [name, job] of Object.entries(JOBS)) {
       if (job.cron_hour === hour && Math.abs(job.cron_minute - minute) <= 5) {
+        // 检查星期限制（如果配置了 weekdays）
+        if (job.weekdays && !job.weekdays.includes(dayOfWeek)) {
+          console.log(`Skipping ${name}: weekday ${dayOfWeek} not in [${job.weekdays}]`);
+          continue;
+        }
         console.log(`Triggering job: ${name}`);
         const result = await triggerWorkflow(env, job.repo, job.event_type);
         console.log(`${name} result:`, JSON.stringify(result));
