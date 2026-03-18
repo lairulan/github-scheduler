@@ -4,6 +4,7 @@
  * 合并管理多个定时任务：
  * - daily-tech-news: 每天 08:30 北京时间 (UTC 00:30)
  * - health-wellness: 每天 09:00 北京时间 (UTC 01:00)
+ * - daily-ai-briefing: 每天 10:00 北京时间 (UTC 02:00)
  * - skill-digest: 每天 12:00 北京时间 (UTC 04:00)
  * - daily-beauty: 每天 19:30 北京时间 (UTC 11:30)
  * - daily-robot-insights: 每天 20:00 北京时间 (UTC 12:00)
@@ -24,6 +25,13 @@ const JOBS = {
     cron_hour: 1,  // UTC 01:00 = 09:00 北京时间
     cron_minute: 0,
     description: '手工暖食小馆养生内容 (09:00 北京时间, 隔天发布)'
+  },
+  'daily-ai-briefing': {
+    repo: 'lairulan/daily-ai-briefing',
+    event_type: 'daily-ai-briefing',
+    cron_hour: 2,  // UTC 02:00 = 10:00 北京时间
+    cron_minute: 0,
+    description: 'AI大事件邮件日报 (10:00 北京时间)'
   },
   'skill-digest': {
     repo: 'lairulan/skill-digest',
