@@ -2,6 +2,7 @@
  * GitHub Actions 定时调度器
  *
  * 合并管理多个定时任务：
+ * - sub2api-daily-report: 每天 01:00 北京时间 (UTC 17:00)
  * - daily-tech-news: 每天 08:30 北京时间 (UTC 00:30)
  * - health-wellness: 每天 09:00 北京时间 (UTC 01:00)
  * - daily-ai-briefing: 每天 10:00 北京时间 (UTC 02:00)
@@ -12,6 +13,13 @@
 
 // 任务配置
 const JOBS = {
+  'sub2api-daily-report': {
+    repo: 'lairulan/sub2api-daily-report',
+    event_type: 'sub2api-daily-report',
+    cron_hour: 17,  // UTC 17:00 = 01:00 北京时间
+    cron_minute: 0,
+    description: 'Sub2API 服务器运营报告 (01:00 北京时间)'
+  },
   'daily-tech-news': {
     repo: 'lairulan/daily-tech-news',
     event_type: 'daily-tech-news',
