@@ -8,17 +8,14 @@ crons = [
   "30 0 * * *",
   "0 1 */2 * *",
   "0 2 * * *",
-  "0 4 * * *",
   "30 11 * * *",
-  "0 12 * * *",
-  "0 14 * * *"
+  "0 12 * * *"
 ]
 
 # 0 17 * * *   = UTC 17:00 = 北京时间 01:00 (sub2api-daily-report)
 # 30 0 * * *   = UTC 00:30 = 北京时间 08:30 (daily-tech-news)
 # 0 1 */2 * *  = UTC 01:00 = 北京时间 09:00 隔天发布 (health-wellness-publisher)
 # 0 2 * * *    = UTC 02:00 = 北京时间 10:00 (daily-ai-briefing)
-# 0 4 * * *    = UTC 04:00 = 北京时间 12:00 (skill-digest)
 # 30 11 * * *  = UTC 11:30 = 北京时间 19:30 (beauty-generator)
 # 0 12 * * *   = UTC 12:00 = 北京时间 20:00 (industrial-robot-insights 周一三五 + teen-psychology-insights 每天)
-# 0 14 * * *   = UTC 14:00 = 北京时间 22:00 (Telegram 每日运行状态日报)
+# Telegram 日报已迁移到 GitHub Actions (.github/workflows/daily-report.yml)
