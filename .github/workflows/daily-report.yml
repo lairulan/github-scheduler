@@ -18,22 +18,19 @@ jobs:
           #!/bin/bash
           set -euo pipefail
 
-          # 北京时间
           BJT_DATE=$(TZ=Asia/Shanghai date '+%Y-%m-%d')
           BJT_TIME=$(TZ=Asia/Shanghai date '+%H:%M')
-          BJT_WEEKDAY=$(TZ=Asia/Shanghai date '+%u')  # 1=Mon ... 7=Sun
-
+          BJT_WEEKDAY=$(TZ=Asia/Shanghai date '+%u')
           WEEKDAY_NAMES=("" "一" "二" "三" "四" "五" "六" "日")
           WEEKDAY_NAME=${WEEKDAY_NAMES[$BJT_WEEKDAY]}
 
-          # 按执行时间排序的 skill 列表 (名称|仓库)
+          # 按执行时间排序的 skill 列表
           SKILLS=(
             "Sub2API 运营报告|lairulan/sub2api-daily-report"
             "每日科技新闻|lairulan/daily-tech-news"
             "手工暖食小馆|lairulan/health-wellness-publisher"
             "天合虹蕴康养|lairulan/tianhe-wellness-publisher"
             "AI大事件日报|lairulan/daily-ai-briefing"
-            "Skill 精选|lairulan/skill-digest"
             "Web3 每日洞察|lairulan/web3-daily"
             "心光馨语|lairulan/teen-psychology-insights"
             "每日艺术写真|lairulan/beauty-generator"
@@ -50,103 +47,80 @@ jobs:
             NAME="${SKILL%%|*}"
             REPO="${SKILL##*|}"
 
-            # 查询今日的 workflow runs
             API_RESULT=$(curl -s -H "Authorization: Bearer ${GH_TOKEN}" \
               -H "Accept: application/vnd.github.v3+json" \
               "https://api.github.com/repos/${REPO}/actions/runs?per_page=3&created=>=${BJT_DATE}" 2>/dev/null)
 
-            # 检查 API 错误
-            API_ERROR=$(echo "$API_RESULT" | python3 -c "
-          import sys, json
-          try:
-              d = json.loads(sys.stdin.read())
-              if 'message' in d:
-                  print(d['message'])
-              else:
-                  print('')
-          except:
-              print('parse_error')
-          " 2>/dev/null)
-
-            if [ -n "$API_ERROR" ] && [ "$API_ERROR" != "" ]; then
-              DETAILS="${DETAILS}[!!] <b>${NAME}</b> - ${API_ERROR}\n"
-              FAIL=$((FAIL + 1))
-              continue
-            fi
-
-            # 解析最新 run
             RUN_INFO=$(echo "$API_RESULT" | python3 -c "
           import sys, json
           try:
               d = json.loads(sys.stdin.read())
-              runs = d.get('workflow_runs', [])
-              if not runs:
-                  print('NO_RUNS')
+              if 'message' in d:
+                  print(f'ERROR|{d[\"message\"]}')
               else:
-                  r = runs[0]
-                  status = r.get('status', '')
-                  conclusion = r.get('conclusion', '') or ''
-                  started = r.get('run_started_at', '') or ''
-                  updated = r.get('updated_at', '') or ''
-                  url = r.get('html_url', '')
-                  print(f'{status}|{conclusion}|{started}|{updated}|{url}')
-          except Exception as e:
-              print(f'ERROR|{e}')
+                  runs = d.get('workflow_runs', [])
+                  if not runs:
+                      print('NO_RUNS|')
+                  else:
+                      r = runs[0]
+                      status = r.get('status', '')
+                      conclusion = r.get('conclusion', '') or ''
+                      started = r.get('run_started_at', '') or ''
+                      updated = r.get('updated_at', '') or ''
+                      # calc duration
+                      dur = ''
+                      if started and updated:
+                          from datetime import datetime
+                          s = datetime.fromisoformat(started.replace('Z','+00:00'))
+                          e = datetime.fromisoformat(updated.replace('Z','+00:00'))
+                          mins = int((e - s).total_seconds() / 60)
+                          dur = f'{mins}min' if mins < 60 else f'{mins//60}h{mins%60}m'
+                      print(f'{status}|{conclusion}|{dur}')
+          except Exception as ex:
+              print(f'ERROR|{ex}')
           " 2>/dev/null)
 
-            if [ "$RUN_INFO" = "NO_RUNS" ]; then
-              DETAILS="${DETAILS}[--] <b>${NAME}</b> - 今日未运行\n"
-              SKIP=$((SKIP + 1))
-              continue
-            fi
+            TYPE=$(echo "$RUN_INFO" | cut -d'|' -f1)
+            FIELD2=$(echo "$RUN_INFO" | cut -d'|' -f2)
+            FIELD3=$(echo "$RUN_INFO" | cut -d'|' -f3)
 
-            STATUS=$(echo "$RUN_INFO" | cut -d'|' -f1)
-            CONCLUSION=$(echo "$RUN_INFO" | cut -d'|' -f2)
-            STARTED=$(echo "$RUN_INFO" | cut -d'|' -f3)
-            UPDATED=$(echo "$RUN_INFO" | cut -d'|' -f4)
-
-            # 计算运行时长
-            DURATION=""
-            if [ -n "$STARTED" ] && [ -n "$UPDATED" ]; then
-              DURATION=$(python3 -c "
-          from datetime import datetime
-          try:
-              s = datetime.fromisoformat('${STARTED}'.replace('Z','+00:00'))
-              e = datetime.fromisoformat('${UPDATED}'.replace('Z','+00:00'))
-              mins = int((e - s).total_seconds() / 60)
-              if mins < 60:
-                  print(f' ({mins}min)')
-              else:
-                  print(f' ({mins//60}h{mins%60}m)')
-          except:
-              print('')
-          " 2>/dev/null)
-            fi
-
-            if [ "$STATUS" = "completed" ]; then
-              case "$CONCLUSION" in
-                success)
-                  DETAILS="${DETAILS}[OK] <b>${NAME}</b>${DURATION}\n"
-                  SUCCESS=$((SUCCESS + 1))
-                  ;;
-                skipped)
-                  DETAILS="${DETAILS}[--] <b>${NAME}</b>${DURATION} - 已跳过\n"
-                  SKIP=$((SKIP + 1))
-                  ;;
-                *)
-                  DETAILS="${DETAILS}[!!] <b>${NAME}</b>${DURATION} - ${CONCLUSION}\n"
-                  FAIL=$((FAIL + 1))
-                  ;;
-              esac
-            elif [ "$STATUS" = "in_progress" ] || [ "$STATUS" = "queued" ]; then
-              DETAILS="${DETAILS}[..] <b>${NAME}</b> - 运行中\n"
-            else
-              DETAILS="${DETAILS}[??] <b>${NAME}</b> - ${STATUS}\n"
-              FAIL=$((FAIL + 1))
-            fi
+            case "$TYPE" in
+              ERROR)
+                DETAILS="${DETAILS}[!!] <b>${NAME}</b> - ${FIELD2}\n"
+                FAIL=$((FAIL + 1))
+                ;;
+              NO_RUNS)
+                DETAILS="${DETAILS}[--] <b>${NAME}</b> - 今日未运行\n"
+                SKIP=$((SKIP + 1))
+                ;;
+              completed)
+                DUR_STR=""
+                [ -n "$FIELD3" ] && DUR_STR=" (${FIELD3})"
+                case "$FIELD2" in
+                  success)
+                    DETAILS="${DETAILS}[OK] <b>${NAME}</b>${DUR_STR}\n"
+                    SUCCESS=$((SUCCESS + 1))
+                    ;;
+                  skipped)
+                    DETAILS="${DETAILS}[--] <b>${NAME}</b>${DUR_STR} - 已跳过\n"
+                    SKIP=$((SKIP + 1))
+                    ;;
+                  *)
+                    DETAILS="${DETAILS}[!!] <b>${NAME}</b>${DUR_STR} - ${FIELD2}\n"
+                    FAIL=$((FAIL + 1))
+                    ;;
+                esac
+                ;;
+              in_progress|queued)
+                DETAILS="${DETAILS}[..] <b>${NAME}</b> - 运行中\n"
+                ;;
+              *)
+                DETAILS="${DETAILS}[??] <b>${NAME}</b> - ${TYPE}\n"
+                FAIL=$((FAIL + 1))
+                ;;
+            esac
           done
 
-          # 构建消息
           if [ $FAIL -eq 0 ]; then
             STATUS_LINE="ALL PASS"
           else
@@ -163,10 +137,8 @@ jobs:
           $(echo -e "$DETAILS")
           <i>${BJT_TIME} CST | github-scheduler</i>"
 
-          # 去掉多余缩进
           MESSAGE=$(echo "$MESSAGE" | sed 's/^          //')
 
-          # 发送到 Telegram
           RESPONSE=$(curl -s -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage" \
             -H "Content-Type: application/json" \
             -d "{
@@ -176,7 +148,6 @@ jobs:
               \"disable_web_page_preview\": true
             }")
 
-          # 检查发送结果
           OK=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('ok', False))" 2>/dev/null || echo "False")
           if [ "$OK" = "True" ]; then
             echo "Report sent successfully!"
