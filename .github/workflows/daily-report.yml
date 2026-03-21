@@ -11,7 +11,7 @@ jobs:
     steps:
       - name: Check all skill workflows and send Telegram report
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
         run: |
@@ -26,90 +26,101 @@ jobs:
           WEEKDAY_NAMES=("" "一" "二" "三" "四" "五" "六" "日")
           WEEKDAY_NAME=${WEEKDAY_NAMES[$BJT_WEEKDAY]}
 
-          # 定义所有需要检查的 skill 仓库
-          declare -A REPOS
-          REPOS=(
-            ["Sub2API 运营报告"]="lairulan/sub2api-daily-report"
-            ["每日科技新闻"]="lairulan/daily-tech-news"
-            ["手工暖食小馆"]="lairulan/health-wellness-publisher"
-            ["天合虹蕴康养"]="lairulan/tianhe-wellness-publisher"
-            ["AI大事件日报"]="lairulan/daily-ai-briefing"
-            ["Skill 精选"]="lairulan/skill-digest"
-            ["每日艺术写真"]="lairulan/beauty-generator"
-            ["工业机器人洞察"]="lairulan/industrial-robot-insights"
-            ["心光馨语"]="lairulan/teen-psychology-insights"
-            ["Web3 每日洞察"]="lairulan/web3-daily"
-          )
-
-          # 按运行时间排序的 key 列表
-          ORDERED_KEYS=(
-            "Sub2API 运营报告"
-            "每日科技新闻"
-            "手工暖食小馆"
-            "天合虹蕴康养"
-            "AI大事件日报"
-            "Skill 精选"
-            "Web3 每日洞察"
-            "心光馨语"
-            "每日艺术写真"
-            "工业机器人洞察"
+          # 按执行时间排序的 skill 列表 (名称|仓库)
+          SKILLS=(
+            "Sub2API 运营报告|lairulan/sub2api-daily-report"
+            "每日科技新闻|lairulan/daily-tech-news"
+            "手工暖食小馆|lairulan/health-wellness-publisher"
+            "天合虹蕴康养|lairulan/tianhe-wellness-publisher"
+            "AI大事件日报|lairulan/daily-ai-briefing"
+            "Skill 精选|lairulan/skill-digest"
+            "Web3 每日洞察|lairulan/web3-daily"
+            "心光馨语|lairulan/teen-psychology-insights"
+            "每日艺术写真|lairulan/beauty-generator"
+            "工业机器人洞察|lairulan/industrial-robot-insights"
           )
 
           SUCCESS=0
           FAIL=0
           SKIP=0
-          TOTAL=${#ORDERED_KEYS[@]}
+          TOTAL=${#SKILLS[@]}
           DETAILS=""
 
-          for NAME in "${ORDERED_KEYS[@]}"; do
-            REPO="${REPOS[$NAME]}"
+          for SKILL in "${SKILLS[@]}"; do
+            NAME="${SKILL%%|*}"
+            REPO="${SKILL##*|}"
 
-            # 查询最近 24 小时的 workflow runs
-            RUNS=$(gh api "repos/${REPO}/actions/runs?per_page=3&created=>=${BJT_DATE}" \
-              --jq '.workflow_runs[:1] | .[] | "\(.status)|\(.conclusion // "null")|\(.run_started_at // "")|\(.updated_at // "")|\(.html_url)"' \
-              2>/dev/null || echo "")
+            # 查询今日的 workflow runs
+            API_RESULT=$(curl -s -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${REPO}/actions/runs?per_page=3&created=>=${BJT_DATE}" 2>/dev/null)
 
-            if [ -z "$RUNS" ]; then
-              # 没有今天的运行记录，尝试查最近一次
-              RUNS=$(gh api "repos/${REPO}/actions/runs?per_page=1" \
-                --jq '.workflow_runs[:1] | .[] | "\(.status)|\(.conclusion // "null")|\(.run_started_at // "")|\(.updated_at // "")|\(.html_url)"' \
-                2>/dev/null || echo "ERROR")
+            # 检查 API 错误
+            API_ERROR=$(echo "$API_RESULT" | python3 -c "
+          import sys, json
+          try:
+              d = json.loads(sys.stdin.read())
+              if 'message' in d:
+                  print(d['message'])
+              else:
+                  print('')
+          except:
+              print('parse_error')
+          " 2>/dev/null)
 
-              if [ "$RUNS" = "ERROR" ] || [ -z "$RUNS" ]; then
-                DETAILS="${DETAILS}[??] <b>${NAME}</b> - API 查询失败\n"
-                FAIL=$((FAIL + 1))
-                continue
-              fi
-
-              # 检查最近一次是否在今天
-              LAST_DATE=$(echo "$RUNS" | cut -d'|' -f3 | cut -d'T' -f1)
-              if [ "$LAST_DATE" != "$BJT_DATE" ]; then
-                DETAILS="${DETAILS}[--] <b>${NAME}</b> - 今日未运行\n"
-                SKIP=$((SKIP + 1))
-                continue
-              fi
+            if [ -n "$API_ERROR" ] && [ "$API_ERROR" != "" ]; then
+              DETAILS="${DETAILS}[!!] <b>${NAME}</b> - ${API_ERROR}\n"
+              FAIL=$((FAIL + 1))
+              continue
             fi
 
-            STATUS=$(echo "$RUNS" | cut -d'|' -f1)
-            CONCLUSION=$(echo "$RUNS" | cut -d'|' -f2)
-            STARTED=$(echo "$RUNS" | cut -d'|' -f3)
-            UPDATED=$(echo "$RUNS" | cut -d'|' -f4)
+            # 解析最新 run
+            RUN_INFO=$(echo "$API_RESULT" | python3 -c "
+          import sys, json
+          try:
+              d = json.loads(sys.stdin.read())
+              runs = d.get('workflow_runs', [])
+              if not runs:
+                  print('NO_RUNS')
+              else:
+                  r = runs[0]
+                  status = r.get('status', '')
+                  conclusion = r.get('conclusion', '') or ''
+                  started = r.get('run_started_at', '') or ''
+                  updated = r.get('updated_at', '') or ''
+                  url = r.get('html_url', '')
+                  print(f'{status}|{conclusion}|{started}|{updated}|{url}')
+          except Exception as e:
+              print(f'ERROR|{e}')
+          " 2>/dev/null)
+
+            if [ "$RUN_INFO" = "NO_RUNS" ]; then
+              DETAILS="${DETAILS}[--] <b>${NAME}</b> - 今日未运行\n"
+              SKIP=$((SKIP + 1))
+              continue
+            fi
+
+            STATUS=$(echo "$RUN_INFO" | cut -d'|' -f1)
+            CONCLUSION=$(echo "$RUN_INFO" | cut -d'|' -f2)
+            STARTED=$(echo "$RUN_INFO" | cut -d'|' -f3)
+            UPDATED=$(echo "$RUN_INFO" | cut -d'|' -f4)
 
             # 计算运行时长
             DURATION=""
             if [ -n "$STARTED" ] && [ -n "$UPDATED" ]; then
-              START_TS=$(date -d "$STARTED" +%s 2>/dev/null || echo "0")
-              END_TS=$(date -d "$UPDATED" +%s 2>/dev/null || echo "0")
-              if [ "$START_TS" != "0" ] && [ "$END_TS" != "0" ]; then
-                MINS=$(( (END_TS - START_TS) / 60 ))
-                if [ $MINS -lt 60 ]; then
-                  DURATION=" (${MINS}min)"
-                else
-                  HOURS=$((MINS / 60))
-                  RMINS=$((MINS % 60))
-                  DURATION=" (${HOURS}h${RMINS}m)"
-                fi
-              fi
+              DURATION=$(python3 -c "
+          from datetime import datetime
+          try:
+              s = datetime.fromisoformat('${STARTED}'.replace('Z','+00:00'))
+              e = datetime.fromisoformat('${UPDATED}'.replace('Z','+00:00'))
+              mins = int((e - s).total_seconds() / 60)
+              if mins < 60:
+                  print(f' ({mins}min)')
+              else:
+                  print(f' ({mins//60}h{mins%60}m)')
+          except:
+              print('')
+          " 2>/dev/null)
             fi
 
             if [ "$STATUS" = "completed" ]; then
@@ -165,13 +176,11 @@ jobs:
               \"disable_web_page_preview\": true
             }")
 
-          echo "Telegram response: $RESPONSE"
-
-          # 检查是否发送成功
+          # 检查发送结果
           OK=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('ok', False))" 2>/dev/null || echo "False")
           if [ "$OK" = "True" ]; then
             echo "Report sent successfully!"
           else
-            echo "Failed to send report!"
+            echo "Failed: $RESPONSE"
             exit 1
           fi
