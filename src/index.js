@@ -3,7 +3,7 @@
  *
  * 合并管理多个定时任务（4 个 cron triggers）：
  * - UTC 17:00 = 01:00 北京: sub2api-daily-report
- * - UTC 01:00 = 09:00 北京: daily-tech-news + health-wellness（隔天由 workflow 自行去重）
+ * - UTC 01:00 = 09:00 北京: daily-tech-news + health-wellness + tianhe-wellness（隔天由 workflow 自行去重）
  * - UTC 02:00 = 10:00 北京: daily-ai-briefing
  * - UTC 12:00 = 20:00 北京: daily-beauty + daily-robot-insights(周一三五) + daily-psychology
  *
@@ -32,6 +32,13 @@ const JOBS = {
     cron_hour: 1,   // UTC 01:00 = 09:00 北京时间（与 tech-news 共用 cron）
     cron_minute: 0,
     description: '手工暖食小馆养生内容 (09:00 北京时间, 隔天由 workflow 去重)'
+  },
+  'tianhe-wellness': {
+    repo: 'lairulan/tianhe-wellness-publisher',
+    event_type: 'daily-tianhe-wellness',
+    cron_hour: 1,   // UTC 01:00 = 09:00 北京时间（与 health-wellness 共用 cron）
+    cron_minute: 0,
+    description: '天合虹蕴养生内容 (09:00 北京时间, 隔天由 workflow 去重)'
   },
   'daily-ai-briefing': {
     repo: 'lairulan/daily-ai-briefing',
