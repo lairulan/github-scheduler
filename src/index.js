@@ -1,11 +1,12 @@
 /**
  * GitHub Actions 定时调度器
  *
- * 合并管理多个定时任务（4 个 cron triggers）：
+ * 合并管理多个定时任务（5 个 cron triggers）：
  * - UTC 17:00 = 01:00 北京: sub2api-daily-report
  * - UTC 01:00 = 09:00 北京: daily-tech-news + health-wellness + tianhe-wellness（隔天由 workflow 自行去重）
  * - UTC 02:00 = 10:00 北京: daily-ai-briefing
- * - UTC 12:00 = 20:00 北京: daily-beauty + daily-robot-insights(周一三五) + daily-psychology
+ * - UTC 11:30 = 19:30 北京: daily-beauty-i2i（图生图）
+ * - UTC 12:00 = 20:00 北京: daily-beauty（文生图）+ daily-robot-insights(周一三五) + daily-psychology
  *
  * Telegram 日报已迁移到 GitHub Actions (.github/workflows/daily-report.yml)
  */
@@ -22,23 +23,23 @@ const JOBS = {
   'daily-tech-news': {
     repo: 'lairulan/daily-tech-news',
     event_type: 'daily-tech-news',
-    cron_hour: 1,   // UTC 01:00 = 09:00 北京时间（原 08:30，合并后推迟 30min）
+    cron_hour: 0,   // UTC 00:00 = 08:00 北京时间
     cron_minute: 0,
-    description: '每日科技新闻 (09:00 北京时间)'
+    description: '每日科技新闻 (08:00 北京时间)'
   },
   'health-wellness': {
     repo: 'lairulan/health-wellness-publisher',
     event_type: 'daily-wellness',
-    cron_hour: 1,   // UTC 01:00 = 09:00 北京时间（与 tech-news 共用 cron）
+    cron_hour: 0,   // UTC 00:00 = 08:00 北京时间（与 tech-news 共用 cron）
     cron_minute: 0,
-    description: '手工暖食小馆养生内容 (09:00 北京时间, 隔天由 workflow 去重)'
+    description: '手工暖食小馆养生内容 (08:00 北京时间, 隔天由 workflow 去重)'
   },
   'tianhe-wellness': {
     repo: 'lairulan/tianhe-wellness-publisher',
     event_type: 'daily-tianhe-wellness',
-    cron_hour: 1,   // UTC 01:00 = 09:00 北京时间（与 health-wellness 共用 cron）
+    cron_hour: 0,   // UTC 00:00 = 08:00 北京时间（与 health-wellness 共用 cron）
     cron_minute: 0,
-    description: '天合虹蕴养生内容 (09:00 北京时间, 隔天由 workflow 去重)'
+    description: '天合虹蕴养生内容 (08:00 北京时间, 隔天由 workflow 去重)'
   },
   'daily-ai-briefing': {
     repo: 'lairulan/daily-ai-briefing',
@@ -52,7 +53,14 @@ const JOBS = {
     event_type: 'daily-beauty',
     cron_hour: 12,  // UTC 12:00 = 20:00 北京时间（原 19:30，合并后推迟 30min）
     cron_minute: 0,
-    description: '每日艺术写真 (20:00 北京时间)'
+    description: '每日艺术写真·文生图 (20:00 北京时间)'
+  },
+  'daily-beauty-i2i': {
+    repo: 'lairulan/beauty-img2img',
+    event_type: 'daily-beauty-i2i',
+    cron_hour: 11,  // UTC 11:00 = 19:00 北京时间
+    cron_minute: 30,
+    description: '每日艺术写真·图生图 (19:30 北京时间)'
   },
   'daily-robot-insights': {
     repo: 'lairulan/industrial-robot-insights',
@@ -95,8 +103,20 @@ export default {
     }
   },
 
-  // HTTP 请求处理（用于手动测试）
+  // HTTP 请求处理（手动触发，需要 Bearer 认证）
   async fetch(request, env, ctx) {
+    // 仅允许 POST 方法
+    if (request.method !== 'POST') {
+      return new Response('Method Not Allowed', { status: 405 });
+    }
+
+    // Bearer token 认证
+    const authHeader = request.headers.get('Authorization') || '';
+    const expectedToken = env.TRIGGER_SECRET;
+    if (!expectedToken || authHeader !== `Bearer ${expectedToken}`) {
+      return new Response('Unauthorized', { status: 401 });
+    }
+
     const url = new URL(request.url);
 
     // 手动触发特定任务
@@ -112,10 +132,16 @@ export default {
       return jsonResponse({ job: jobName, ...result });
     }
 
-    // 触发所有任务
+    // 触发所有任务（保留 weekday 门控）
     if (url.pathname === '/trigger-all') {
+      const now = new Date();
+      const dayOfWeek = now.getUTCDay();
       const results = {};
       for (const [name, job] of Object.entries(JOBS)) {
+        if (job.weekdays && !job.weekdays.includes(dayOfWeek)) {
+          results[name] = { skipped: true, reason: `weekday ${dayOfWeek} not in [${job.weekdays}]` };
+          continue;
+        }
         results[name] = await triggerWorkflow(env, job.repo, job.event_type);
       }
       return jsonResponse({ results });
@@ -124,7 +150,7 @@ export default {
     // 首页信息
     return jsonResponse({
       name: 'GitHub Actions 定时调度器',
-      cron_triggers: 4,
+      cron_triggers: Object.keys(JOBS).length,
       jobs: Object.entries(JOBS).map(([name, job]) => ({
         name,
         description: job.description,

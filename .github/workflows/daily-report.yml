@@ -33,7 +33,8 @@ jobs:
             "AI大事件日报|lairulan/daily-ai-briefing"
             "Web3 每日洞察|lairulan/web3-daily"
             "心光馨语|lairulan/teen-psychology-insights"
-            "每日艺术写真|lairulan/beauty-generator"
+            "每日艺术写真·文生图|lairulan/beauty-generator"
+            "每日艺术写真·图生图|lairulan/beauty-img2img"
             "工业机器人洞察|lairulan/industrial-robot-insights"
           )
 
