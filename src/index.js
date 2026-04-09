@@ -165,51 +165,58 @@ export default {
   }
 };
 
-async function triggerWorkflow(env, repo, eventType) {
+async function triggerWorkflow(env, repo, eventType, retries = 3) {
   const GITHUB_TOKEN = env.GITHUB_TOKEN;
 
   if (!GITHUB_TOKEN) {
     return { success: false, error: 'GITHUB_TOKEN not configured' };
   }
 
-  try {
-    const response = await fetch(
-      `https://api.github.com/repos/${repo}/dispatches`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${GITHUB_TOKEN}`,
-          'Accept': 'application/vnd.github.v3+json',
-          'User-Agent': 'Cloudflare-Worker-GitHub-Scheduler',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ event_type: eventType })
-      }
-    );
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const response = await fetch(
+        `https://api.github.com/repos/${repo}/dispatches`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${GITHUB_TOKEN}`,
+            'Accept': 'application/vnd.github.v3+json',
+            'User-Agent': 'Cloudflare-Worker-GitHub-Scheduler',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ event_type: eventType })
+        }
+      );
 
-    if (response.status === 204) {
-      return {
-        success: true,
-        message: 'Workflow triggered',
-        repo,
-        event_type: eventType,
-        timestamp: new Date().toISOString()
-      };
-    } else {
+      if (response.status === 204) {
+        return {
+          success: true,
+          message: 'Workflow triggered',
+          repo,
+          event_type: eventType,
+          timestamp: new Date().toISOString()
+        };
+      }
+
       const text = await response.text();
-      return {
-        success: false,
-        status: response.status,
-        error: text
-      };
+      // 4xx 错误不重试（认证/权限失败重试无意义）
+      if (response.status >= 400 && response.status < 500) {
+        return { success: false, status: response.status, error: text };
+      }
+      // 5xx 继续重试
+      if (attempt < retries) {
+        await new Promise(r => setTimeout(r, 1000 * attempt * 2));
+      } else {
+        return { success: false, status: response.status, error: text };
+      }
+    } catch (error) {
+      if (attempt < retries) {
+        await new Promise(r => setTimeout(r, 1000 * attempt * 2));
+      } else {
+        return { success: false, error: error.message };
+      }
     }
-  } catch (error) {
-    return {
-      success: false,
-      error: error.message
-    };
   }
-}
 
 function jsonResponse(data, status = 200) {
   return new Response(JSON.stringify(data, null, 2), {
