@@ -217,6 +217,7 @@ async function triggerWorkflow(env, repo, eventType, retries = 3) {
       }
     }
   }
+}
 
 function jsonResponse(data, status = 200) {
   return new Response(JSON.stringify(data, null, 2), {
