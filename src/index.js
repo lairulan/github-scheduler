@@ -5,7 +5,7 @@
  * - UTC 17:00 = 01:00 北京: sub2api-daily-report
  * - UTC 01:00 = 09:00 北京: daily-tech-news + health-wellness + tianhe-wellness（隔天由 workflow 自行去重）
  * - UTC 02:00 = 10:00 北京: daily-ai-briefing
- * - UTC 11:30 = 19:30 北京: daily-beauty-i2i（图生图）
+ * - UTC 12:30 = 20:30 北京: daily-beauty-i2i（图生图）
  * - UTC 12:00 = 20:00 北京: daily-beauty（文生图）+ daily-robot-insights(周一三五) + daily-psychology
  *
  * Telegram 日报已迁移到 GitHub Actions (.github/workflows/daily-report.yml)
@@ -58,9 +58,9 @@ const JOBS = {
   'daily-beauty-i2i': {
     repo: 'lairulan/beauty-img2img',
     event_type: 'daily-beauty-i2i',
-    cron_hour: 11,  // UTC 11:00 = 19:00 北京时间
+    cron_hour: 12,  // UTC 12:30 = 20:30 北京时间
     cron_minute: 30,
-    description: '每日艺术写真·图生图 (19:30 北京时间)'
+    description: '每日艺术写真·图生图 (20:30 北京时间)'
   },
   'daily-robot-insights': {
     repo: 'lairulan/industrial-robot-insights',
