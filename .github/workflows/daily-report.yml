@@ -28,7 +28,6 @@ jobs:
           SKILLS=(
             "Sub2API 运营报告|lairulan/sub2api-daily-report"
             "每日科技新闻|lairulan/daily-tech-news"
-            "手工暖食小馆|lairulan/health-wellness-publisher"
             "天合虹蕴康养|lairulan/tianhe-wellness-publisher"
             "AI大事件日报|lairulan/daily-ai-briefing"
             "Web3 每日洞察|lairulan/web3-daily"
