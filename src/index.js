@@ -1,12 +1,14 @@
 /**
  * GitHub Actions 定时调度器
  *
- * 合并管理多个定时任务（5 个 cron triggers）：
+ * 合并管理多个定时任务：
  * - UTC 17:00 = 01:00 北京: sub2api-daily-report
- * - UTC 00:00 = 08:00 北京: daily-tech-news + tianhe-wellness（隔天由 workflow 自行去重）
  * - UTC 02:00 = 10:00 北京: daily-ai-briefing
  * - UTC 12:30 = 20:30 北京: daily-beauty-i2i（图生图）
  * - UTC 12:00 = 20:00 北京: daily-beauty（文生图）+ daily-robot-insights(周一三五) + daily-psychology
+ *
+ * Disabled 2026-06-24:
+ * - daily-tech-news / health-wellness / tianhe-wellness public-account publishers
  *
  * Telegram 日报已迁移到 GitHub Actions (.github/workflows/daily-report.yml)
  */
@@ -19,20 +21,6 @@ const JOBS = {
     cron_hour: 17,  // UTC 17:00 = 01:00 北京时间
     cron_minute: 0,
     description: 'Sub2API 服务器运营报告 (01:00 北京时间)'
-  },
-  'daily-tech-news': {
-    repo: 'lairulan/daily-tech-news',
-    event_type: 'daily-tech-news',
-    cron_hour: 0,   // UTC 00:00 = 08:00 北京时间
-    cron_minute: 0,
-    description: '每日科技新闻 (08:00 北京时间)'
-  },
-  'tianhe-wellness': {
-    repo: 'lairulan/tianhe-wellness-publisher',
-    event_type: 'daily-tianhe-wellness',
-    cron_hour: 0,   // UTC 00:00 = 08:00 北京时间（与 tech-news 共用 cron）
-    cron_minute: 0,
-    description: '天合虹蕴养生内容 (08:00 北京时间, 隔天由 workflow 去重)'
   },
   'daily-ai-briefing': {
     repo: 'lairulan/daily-ai-briefing',

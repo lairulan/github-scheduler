@@ -5,15 +5,15 @@ compatibility_date = "2024-01-01"
 [triggers]
 crons = [
   "0 17 * * *",
-  "0 0 * * *",
   "0 2 * * *",
   "30 12 * * *",
   "0 12 * * *"
 ]
 
-# 5 cron triggers（免费版上限 5 个，已满）
+# 4 cron triggers
 # 0 17 * * *  = UTC 17:00 = 北京 01:00  → sub2api-daily-report
-# 0 0 * * *   = UTC 00:00 = 北京 08:00  → daily-tech-news + tianhe-wellness（合并）
 # 0 2 * * *   = UTC 02:00 = 北京 10:00  → daily-ai-briefing
 # 30 12 * * * = UTC 12:30 = 北京 20:30  → beauty-i2i（图生图）
 # 0 12 * * *  = UTC 12:00 = 北京 20:00  → beauty（文生图）+ robot-insights(周一三五) + psychology
+# 2026-06-24: removed UTC 00:00 public-account publishers:
+# daily-tech-news, health-wellness, tianhe-wellness.
