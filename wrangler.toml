@@ -16,5 +16,5 @@ crons = [
 # 0 0 * * *   = UTC 00:00 = 北京 08:00  → tianhe-wellness
 # 0 2 * * *   = UTC 02:00 = 北京 10:00  → daily-ai-briefing
 # 30 12 * * * = UTC 12:30 = 北京 20:30  → beauty-i2i（图生图）
-# 0 12 * * *  = UTC 12:00 = 北京 20:00  → beauty（文生图）+ robot-insights(周一三五) + psychology
+# 0 12 * * *  = UTC 12:00 = 北京 20:00  → beauty（文生图）+ robot-insights(周一三五) + psychology(周一三五)
 # 2026-06-24: removed daily-tech-news public-account publisher.
